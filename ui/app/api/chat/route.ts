@@ -5,8 +5,6 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
 
-    console.log(body.session_id);
-
     const response = await fetch('http://localhost:8000/api/query', {
       method: 'POST',
       headers: {

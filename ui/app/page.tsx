@@ -2,6 +2,8 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 export default function Home() {
   const [messages, setMessages] = useState<{ role: string; content: string }[]>([]);
@@ -120,7 +122,15 @@ export default function Home() {
                   : "bg-gray-800 text-gray-100 rounded-bl-none"
               }`}
             >
-              {message.content}
+              {message.role === "assistant" ? (
+                <div className="markdown-content">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {message.content}
+                  </ReactMarkdown>
+                </div>
+              ) : (
+                message.content
+              )}
             </div>
           </div>
         ))}
