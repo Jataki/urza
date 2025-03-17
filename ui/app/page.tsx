@@ -1,4 +1,4 @@
-// app/page.tsx
+// ui/app/page.tsx
 "use client";
 
 import { useState, useRef, useEffect } from "react";
@@ -7,6 +7,7 @@ export default function Home() {
   const [messages, setMessages] = useState<{ role: string; content: string }[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Add welcome message on first load
@@ -34,21 +35,75 @@ export default function Home() {
     setInput("");
     setIsLoading(true);
 
-    // Simulated response for now
-    setTimeout(() => {
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: "This is a simulated response. I'll help you with your MTG strategy." }
-      ]);
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: input,
+          sessionId: sessionId
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      // Save session ID from first response
+      if (!sessionId && data.session_id) {
+        setSessionId(data.session_id);
+      }
+
+      setMessages((prev) => [...prev, { role: "assistant", content: data.answer }]);
+    } catch (error) {
+      console.error('Error sending message:', error);
+      setMessages((prev) => [...prev, { 
+        role: "assistant", 
+        content: "Sorry, I encountered an error processing your request. Please try again." 
+      }]);
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
+  };
+
+  const handleReset = async () => {
+    if (!sessionId) return;
+
+    try {
+      await fetch('/api/reset', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sessionId: sessionId
+        }),
+      });
+      
+      setMessages([{ 
+        role: "assistant", 
+        content: "Conversation has been reset. How can I help you with Magic: The Gathering today?" 
+      }]);
+    } catch (error) {
+      console.error('Error resetting conversation:', error);
+    }
   };
 
   return (
     <div className="flex flex-col h-screen bg-gradient-to-b from-gray-900 to-black text-white">
       {/* Header */}
-      <header className="p-4 border-b border-gray-800 bg-gray-900 shadow-md">
-        <h1 className="text-2xl font-bold text-center text-blue-400">MTG Strategist</h1>
+      <header className="p-4 border-b border-gray-800 bg-gray-900 shadow-md flex justify-between items-center">
+        <h1 className="text-2xl font-bold text-blue-400">MTG Strategist</h1>
+        <button 
+          onClick={handleReset}
+          className="bg-red-800 hover:bg-red-700 text-white px-3 py-1 rounded text-sm transition-colors"
+        >
+          Reset Chat
+        </button>
       </header>
 
       {/* Chat container */}
