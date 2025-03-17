@@ -47,6 +47,14 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# Next.js specific
+/ui/.next/
+/ui/out/
+/ui/.vercel
+/ui/next-env.d.ts
+/ui/.contentlayer
+.turbo
+
 # IDE specific files
 .vscode/
 .idea/
@@ -61,12 +69,14 @@ yarn-error.log*
 /strategist_agent/logs/
 /strategist_agent/output/
 /strategist_agent/cache/
+/ui/.env
 
 # Generated files
 *.db
 *.sqlite3
 .cache/
 *.log
+tsconfig.tsbuildinfo
 
 # Temporary files
 tmp/
