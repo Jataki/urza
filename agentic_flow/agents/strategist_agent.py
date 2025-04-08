@@ -1,38 +1,31 @@
-from google import genai
-from retriever import KnowledgeBaseRetriever
-from prompts import get_mtg_strategist_prompt, get_context_prompt
-from config import GOOGLE_API_KEY, MODEL_NAME, TEMPERATURE
+from typing import Dict, Any, Optional
+from .base_agent import Agent
 from langchain.chains import create_history_aware_retriever, create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain_core.runnables.history import RunnableWithMessageHistory
-from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_community.chat_message_histories import ChatMessageHistory
+from services.knowledge_service import KnowledgeBaseRetriever
+from prompts.strategist_prompts import get_context_prompt, get_mtg_strategist_prompt
+from config import STRATEGIST_MODEL, GOOGLE_API_KEY
 
-class StrategistAgent:
-    def __init__(self):        
-        # Initialize LLM
-        self.llm = ChatGoogleGenerativeAI(
-            model=MODEL_NAME, 
-            temperature=TEMPERATURE, 
-            google_api_key=GOOGLE_API_KEY
-        )
-        
-        # Initialize retriever
-        self.base_retriever = KnowledgeBaseRetriever().initialize().get_retriever()
-        
-        # Build the chain
+class StrategistAgent(Agent):
+    """Agent responsible for providing MTG strategy recommendations."""
+    
+    def __init__(self, model_name=None, temperature=0.7, api_key=None):
+        """Initialize the strategist agent."""
+        model_name = model_name or STRATEGIST_MODEL
+        api_key = api_key or GOOGLE_API_KEY
+        super().__init__(model_name, temperature, api_key)
+        self.knowledge_retriever = KnowledgeBaseRetriever().initialize().get_retriever()
         self.chain = self._build_chain()
-
-        # Statefully manage chat history
         self.store = {}
 
-        
     def _build_chain(self):
-        """Build the history-aware retrieval chain"""
+        """Build the history-aware retrieval chain."""
         # Create history-aware retriever
         history_aware_retriever = create_history_aware_retriever(
             self.llm, 
-            self.base_retriever, 
+            self.knowledge_retriever, 
             get_context_prompt()
         )
         
@@ -56,8 +49,11 @@ class StrategistAgent:
             output_messages_key="answer",
         )
     
-    def process_query(self, query, session_id="default_session"):
-        """Process a user query using the agent chain"""
+    def process(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Process a user query using the agent chain."""
+        query = input_data.get("query")
+        session_id = input_data.get("session_id", "default_session")
+        
         response = self.chain.invoke(
             {"input": query},
             {"configurable": {"session_id": session_id}}
@@ -65,11 +61,13 @@ class StrategistAgent:
         
         return response
     
-    def reset_conversation(self):
-        """Reset the conversation history"""
-        self.chat_history.clear()
-
     def get_session_history(self, session_id: str):
+        """Get or create chat history for the session."""
         if session_id not in self.store:
             self.store[session_id] = ChatMessageHistory()
         return self.store[session_id]
+    
+    def reset_session(self, session_id: str):
+        """Reset the conversation history for a session."""
+        if session_id in self.store:
+            self.store[session_id].clear()
